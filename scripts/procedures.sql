@@ -31,6 +31,7 @@ BEGIN
 		
         SET p_mensagem = JSON_OBJECT(
 			'status', true,
+            'status_code', 200,
             'message', 'Psicopedagogo cadastrado com sucesso',
             'data', JSON_OBJECT(
                 'nome', p_nome,
