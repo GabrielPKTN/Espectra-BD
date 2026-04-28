@@ -2,6 +2,7 @@
 -- PROCEDURES
 -- ----------------------------------
 
+-- PROCEDURE QUE ATUALIZA O PERFIL DO PSICOPEDAGOGO
 delimiter $$
 CREATE PROCEDURE proc_atualizar_psicopedagogo(
 	IN psic_id INT,
@@ -33,9 +34,43 @@ end $$
 delimiter ;
 
 CALL proc_atualizar_psicopedagogo(
-	1, 
-    'psico1.jpg',
-    'Nicolas',
-    '2008-06-16',
-    '(11) 96666-6666'
+	1, -- Id do Psicopedagogo
+    'psico1.jpg', -- Foto do Psicopedagogo
+    'Nicolas', -- Nome do Psicopedagogo
+    '2008-06-16', -- Data de nascimento do Psicopedagogo
+    '(11) 96666-6666' -- Telefone do Psicopedagogo
 );
+
+-- PROCEDURE QUE ATUALIZA A SENHA DO PSICOPEDAGOGO
+DELIMITER $$
+CREATE PROCEDURE proc_atualizar_senha_psicopedagogo(
+	IN psic_id INT, 
+    IN psic_email VARCHAR(255),
+    IN psic_nova_senha VARCHAR(150)
+)
+BEGIN
+	DECLARE id_existe INT;
+
+	SELECT COUNT(*) INTO id_existe
+	FROM tb_psicopedagogo
+	WHERE id = psic_id AND email = psic_email;
+
+	IF id_existe > 0 THEN
+		UPDATE tb_psicopedagogo
+        SET senha = psic_nova_senha
+        WHERE id = psic_id AND email = psic_email;
+        
+        SELECT 'Senha atualizada com sucesso!' AS mensagem;
+        
+	ELSE
+		SELECT CONCAT('ID ou email inválido (ID: ', psic_id, ')') AS erro;
+        
+	END IF;
+END $$
+DELIMITER ;
+
+CALL proc_atualizar_senha_psicopedagogo(
+	1, -- Id do Psicopedagogo
+    'ana.martins@email.com', -- Email do psicopedagogo
+    'senhaN0103' -- Senha nova do psicopedagogo
+)
