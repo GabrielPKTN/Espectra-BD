@@ -133,4 +133,13 @@ CALL proc_atualizar_respostas_formulario(
 	2, -- Id do Formulário
     2, -- Id da Pergunta (Portage)
     3 -- Id da Resposta
-)
+);
+
+-- PROCEDURE PARA INSERIR ATIVIDADE PORTAGE
+DELIMITER $$
+CREATE PROCEDURE proc_inserir_atividade_tipo_portage()
+BEGIN
+	INSERT INTO tb_atividade (status_atividade, id_paciente, id_atividade_portage)
+    VALUES ();
+END$$
+DELIMITER ;
