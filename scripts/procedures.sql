@@ -101,3 +101,36 @@ SET SQL_SAFE_UPDATES = 0;
 CALL proc_delete_psicopedagogo(
 	1 -- Id Psicopedagogo
 );
+
+-- PROCEDURE PARA ATUALIZAR FORMULÁRIO
+DELIMITER $$
+CREATE PROCEDURE proc_atualizar_respostas_formulario(
+	IN form_id INT,
+    IN form_atividade_portage INT,
+    IN form_resposta INT
+)
+BEGIN 
+	DECLARE id_existe INT;
+    
+    SELECT COUNT(*) INTO id_existe
+    FROM tb_formulario WHERE id = form_id 
+	AND id_atividade_portage = form_atividade_portage;
+    
+    IF id_existe > 0 THEN
+		UPDATE tb_formulario
+        SET
+			id_resposta = form_resposta
+		WHERE id = form_id AND id_atividade_portage = form_atividade_portage;
+        
+        SELECT "Formulário atualizado com sucesso!" as mensagem;
+	ELSE
+		SELECT CONCAT("Registro não encontrado (ID: ", form_id, ")") as erro;
+	END IF;
+END $$
+DELIMITER ;
+
+CALL proc_atualizar_respostas_formulario(
+	2, -- Id do Formulário
+    2, -- Id da Pergunta (Portage)
+    3 -- Id da Resposta
+)
