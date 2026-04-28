@@ -95,6 +95,9 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- Desativa temporariamente o Safe Updates
+SET SQL_SAFE_UPDATES = 0;
+
 CALL proc_delete_psicopedagogo(
-	1
+	1 -- Id Psicopedagogo
 );
