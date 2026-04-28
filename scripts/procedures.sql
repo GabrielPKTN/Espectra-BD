@@ -74,3 +74,27 @@ CALL proc_atualizar_senha_psicopedagogo(
     'ana.martins@email.com', -- Email do psicopedagogo
     'senhaN0103' -- Senha nova do psicopedagogo
 )
+
+-- PROCEDURE PARA DELETAR PSICOPEDAGOGO
+DELIMITER $$
+CREATE PROCEDURE proc_delete_psicopedagogo(
+	IN psic_id INT
+)
+BEGIN
+	DECLARE id_existe INT;
+    
+    SELECT COUNT(*) INTO id_existe
+    FROM tb_psicopedagogo WHERE id = psic_id;
+    
+    IF id_existe > 0 THEN
+		DELETE FROM tb_psicopedagogo WHERE id = psic_id;
+        SELECT ("Perfil deletado com sucesso") AS mensagem;
+	ELSE
+		SELECT CONCAT("O ID	", psic_id, "	NÃO EXISTE!") as erro;
+	END IF;
+END $$
+DELIMITER ;
+
+CALL proc_delete_psicopedagogo(
+	1
+);
