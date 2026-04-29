@@ -3,7 +3,162 @@
 -- ----------------------------------
 
 
+--------------------------------------------------------------------
+-- BUSCA TODODS OS DADOS REFERENTE AO PACIENTE PARA RETORNAR NO JSON
+---------------------------------------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE prc_buscar_paciente_completo(
+    IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+    -- PACIENTE
+    DECLARE v_nome VARCHAR(150);
+    DECLARE v_foto VARCHAR(255);
+    DECLARE v_data_nascimento DATE;
+    DECLARE v_idade INT;
+    DECLARE v_diagnostico VARCHAR(50);
+    DECLARE v_numero_registro VARCHAR(50);
+    DECLARE v_grau_suporte INT;
+    DECLARE v_serie_escolar VARCHAR(50);
+
+    -- PSICOPEDAGOGO
+    DECLARE v_id_psicopedagogo INT;
+    DECLARE v_nome_psico VARCHAR(150);
+    DECLARE v_tel_psico VARCHAR(20);
+
+    -- JSONS
+    DECLARE v_habilidades JSON;
+    DECLARE v_responsaveis JSON;
+
+    -- VALIDAÇÃO
+    IF NOT EXISTS (
+        SELECT 1 FROM tb_paciente WHERE id = p_id_paciente
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', '404',
+            'message', 'Paciente não encontrado',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- PACIENTE
+        SELECT 
+            p.nome,
+            p.foto,
+            p.data_nascimento,
+            p.diagnostico,
+            p.numero_registro,
+            g.grau,
+            s.serie,
+            p.id_psicopedagogo
+        INTO
+            v_nome,
+            v_foto,
+            v_data_nascimento,
+            v_diagnostico,
+            v_numero_registro,
+            v_grau_suporte,
+            v_serie_escolar,
+            v_id_psicopedagogo
+        FROM tb_paciente p
+        LEFT JOIN tb_grau_suporte g ON g.id = p.id_grau_suporte
+        LEFT JOIN tb_serie_escolar s ON s.id = p.id_serie_escolar
+        WHERE p.id = p_id_paciente
+        LIMIT 1;
+
+        -- IDADE
+        SET v_idade = IFNULL(
+            TIMESTAMPDIFF(YEAR, v_data_nascimento, CURDATE()),
+            NULL
+        );
+
+        -- PSICOPEDAGOGO
+        SELECT
+            nome,
+            telefone
+        INTO
+            v_nome_psico,
+            v_tel_psico
+        FROM tb_psicopedagogo
+        WHERE id = v_id_psicopedagogo
+        LIMIT 1;
+
+        -- HABILIDADES
+        SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'id', h.id,
+                'nome', h.nome,
+                'valor_meses', ph.anos_meses
+            )
+        )
+        INTO v_habilidades
+        FROM tb_paciente_habilidade ph
+        JOIN tb_habilidade h ON h.id = ph.id_habilidade
+        WHERE ph.id_paciente = p_id_paciente;
+
+        SET v_habilidades = IFNULL(v_habilidades, JSON_ARRAY());
+
+        -- RESPONSÁVEIS
+        SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'id', r.id,
+                'nome', r.nome,
+                'telefone', r.telefone
+            )
+        )
+        INTO v_responsaveis
+        FROM tb_responsavel_paciente rp
+        JOIN tb_responsavel r ON r.id = rp.id_responsavel
+        WHERE rp.id_paciente = p_id_paciente;
+
+        SET v_responsaveis = IFNULL(v_responsaveis, JSON_ARRAY());
+
+        -- RETORNO FINAL
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', '200',
+            'message', 'Paciente encontrado',
+            'data', JSON_OBJECT(
+                'id', p_id_paciente,
+                'foto', v_foto,
+                'nome', v_nome,
+                'data_nascimento', v_data_nascimento,
+                'idade', v_idade,
+                'diagnostico', v_diagnostico,
+                'numero_registro', v_numero_registro,
+                'grau_suporte', v_grau_suporte,
+                'serie_escolar', v_serie_escolar,
+                'grafico', v_habilidades,
+
+                'psicopedagogo', JSON_ARRAY(
+                    JSON_OBJECT(
+                        'id', v_id_psicopedagogo,
+                        'nome', v_nome_psico,
+                        'telefone', v_tel_psico
+                    )
+                ),
+
+                'responsavel', v_responsaveis
+            )
+        );
+
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+
+
+-----------------------------------------
 -- ADICIONAR PSICOPEDAGOGO
+-----------------------------------------
 
 DELIMITER $$
 CREATE PROCEDURE procedure_adicionar_psicopedagogo(
@@ -52,11 +207,13 @@ call procedure_adicionar_psicopedagogo('foto.png', 'Enzo Carrilho', '2005-09-25'
 SELECT @msg;
 
 
+-----------------------------------------
 -- ADICIONAR PACIENTE
+-----------------------------------------
 
 DELIMITER $$
 
-CREATE PROCEDURE procedure_adicionar_paciente(
+CREATE PROCEDURE prc_adicionar_paciente(
     IN p_nome VARCHAR(150),
     IN p_foto VARCHAR(255),
     IN p_data_nascimento DATE,
@@ -68,44 +225,24 @@ CREATE PROCEDURE procedure_adicionar_paciente(
 )
 BEGIN
 
-    DECLARE grau_suporte INT;
-    DECLARE serie_escolar VARCHAR(50);
     DECLARE v_numero_registro VARCHAR(20);
-    
-    DECLARE v_habilidades JSON;
-    DECLARE v_responsaveis JSON;
-
     DECLARE novo_id INT;
-    DECLARE idade INT;
 
-    -- HABILIDADE
-    DECLARE id_habilidade INT;
-    DECLARE nome_habilidade VARCHAR(25);
-    DECLARE valor_meses DECIMAL(10,1);
-
-    -- PSICOPEDAGOGO
-    DECLARE id_psicopedagogo INT;
-    DECLARE nome_psicopedagogo VARCHAR(150);
-    DECLARE telefone_psicopedagogo VARCHAR(20);
-
-    -- RESPONSAVEL
-    DECLARE id_responsavel INT;
-    DECLARE nome_responsavel VARCHAR(150);
-    DECLARE telefone_responsavel VARCHAR(20);
-
-    
-    IF EXISTS (SELECT 1 FROM tb_paciente WHERE nome = p_nome) THEN
+    -- valida duplicidade
+    IF EXISTS (
+        SELECT 1 FROM tb_paciente WHERE nome = p_nome
+    ) THEN
 
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
+            'status_code', 409,
             'message', 'Este paciente já existe',
             'data', NULL
         );
 
     ELSE
 
-        
-        -- GERA NUMERO DE REGISTRO
+        -- gera número de registro
         SELECT CONCAT(
             DATE_FORMAT(NOW(), '%Y%m'),
             LPAD(
@@ -118,8 +255,7 @@ BEGIN
         FROM tb_paciente
         WHERE numero_registro LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m'), '%');
 
-      
-        -- INSERT PACIENTE
+        -- insert paciente
         INSERT INTO tb_paciente(
             numero_registro,
             nome,
@@ -141,99 +277,17 @@ BEGIN
 
         SET novo_id = LAST_INSERT_ID();
 
-        -- RESPONSAVEL
+        -- vínculo responsável
         INSERT INTO tb_responsavel_paciente(id_responsavel, id_paciente)
         VALUES (p_id_responsavel, novo_id);
 
-        -- IDADE
-        SET idade = TIMESTAMPDIFF(YEAR, p_data_nascimento, CURDATE());
+        CALL prc_buscar_paciente_completo(novo_id, p_mensagem);
 
-        -- GRAU
-        SELECT grau.grau
-        INTO grau_suporte
-        FROM tb_paciente paciente
-        JOIN tb_grau_suporte grau ON paciente.id_grau_suporte = grau.id
-        WHERE paciente.id = novo_id
-        LIMIT 1;
-
-        -- SERIE
-        SELECT serie.serie
-        INTO serie_escolar
-        FROM tb_paciente paciente
-        JOIN tb_serie_escolar serie ON paciente.id_serie_escolar = serie.id
-        WHERE paciente.id = novo_id
-        LIMIT 1;
-
-	
-        -- DEFININDO HABILIDADES
-        SELECT JSON_ARRAYAGG(
-			JSON_OBJECT(
-				'id', h.id,
-				'nome', h.nome,
-				'valor_meses', ph.anos_meses
-			)
-		)
-		INTO v_habilidades
-		FROM tb_habilidade h
-		JOIN tb_paciente_habilidade ph 
-			ON h.id = ph.id_habilidade
-		WHERE ph.id_paciente = novo_id;
-        
-        -- DEFININDO PSICOPEDAGOGO
-        SELECT
-            psicopedagogo.id,
-            psicopedagogo.nome,
-            psicopedagogo.telefone
-		INTO 
-			id_psicopedagogo,
-            nome_psicopedagogo,
-            telefone_psicopedagogo
-        FROM tb_psicopedagogo psicopedagogo JOIN tb_paciente paciente ON psicopedagogo.id = paciente.id_psicopedagogo
-        WHERE paciente.id = novo_id;
-        
-        -- DEFININDO RESPONSÁVEIS
-        SELECT JSON_ARRAYAGG(
-			JSON_OBJECT(
-				'id', r.id,
-				'nome', r.nome,
-				'telefone', r.telefone
-			)
-		)
-		INTO v_responsaveis
-		FROM tb_responsavel r
-		JOIN tb_responsavel_paciente rp 
-			ON r.id = rp.id_responsavel
-		WHERE rp.id_paciente = novo_id;
-        
-     
-
-        -- JSON FINAL
-        SET p_mensagem = JSON_OBJECT(
-            'status', TRUE,
-            'status_code', 200,
-            'message', 'Paciente cadastrado com sucesso',
-            'data', JSON_OBJECT(
-                'nome', p_nome,
-                'foto', p_foto,
-                'data_nascimento', p_data_nascimento,
-                'idade', idade,
-                'diagnostico', p_diagnostico,
-                'serie_escolar', serie_escolar,
-                'grau_suporte', grau_suporte,
-                'numero_registro', v_numero_registro,
-
-                'grafico', v_habilidades,
-
-                'psicopedagogo', JSON_ARRAY(
-                    JSON_OBJECT(
-                        'id', id_psicopedagogo,
-                        'nome', nome_psicopedagogo,
-                        'telefone', telefone_psicopedagogo
-                    )
-                ),
-
-                'responsavel', v_responsaveis
-            )
+        -- sobrescreve mensagem padrão
+        SET p_mensagem = JSON_SET(
+            p_mensagem,
+            '$.message',
+            'Paciente cadastrado com sucesso'
         );
 
     END IF;
@@ -243,178 +297,133 @@ END $$
 DELIMITER ;
 
 
+---------------------------------------------
 --- ADICIONAR RELACAO PSICOPEDAGOGO PACIENTE
-
+---------------------------------------------
 
 DELIMITER $$
 
 CREATE PROCEDURE prc_inserir_relacao_psicopedagogo_paciente(
-	IN p_id_paciente INT,
+    IN p_id_paciente INT,
     IN p_id_psicopedagogo INT,
     OUT p_mensagem JSON
 )
 BEGIN
-	-- DADOS DE RETORNO PACIENTE
-	DECLARE nome_paciente VARCHAR(150);
-    DECLARE foto_paciente VARCHAR(255);
-    DECLARE v_data_nascimento DATE;
-    DECLARE idade INT;
-    DECLARE v_diagnostico VARCHAR(50);
-    DECLARE v_numero_registro VARCHAR(50);
-    DECLARE grau_suporte INT;
-    DECLARE serie_escolar VARCHAR(50);
-    
-     -- HABILIDADE
-    DECLARE id_habilidade INT;
-    DECLARE nome_habilidade VARCHAR(25);
-    DECLARE valor_meses DECIMAL(10,1);
 
-    -- PSICOPEDAGOGO
-    DECLARE nome_psicopedagogo VARCHAR(150);
-    DECLARE telefone_psicopedagogo VARCHAR(20);
+    -- valida paciente
+    IF NOT EXISTS (
+        SELECT 1 FROM tb_paciente WHERE id = p_id_paciente
+    ) THEN
 
-    -- RESPONSAVEL
-    DECLARE id_responsavel INT;
-    DECLARE nome_responsavel VARCHAR(150);
-    DECLARE telefone_responsavel VARCHAR(20);
-    
-    DECLARE v_habilidades JSON;
-	DECLARE v_responsaveis JSON;
-
-    
-     IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
-		
         SET p_mensagem = JSON_OBJECT(
-				'status', FALSE,
-                'status_code', '404',
-				'message', 'Paciente não encontrado',
-				'data', NULL
-			);
-     
-     ELSEIF NOT EXISTS (SELECT 1 FROM tb_psicopedagogo WHERE id = p_id_psicopedagogo) THEN
-
-		SET p_mensagem = JSON_OBJECT(
-			'status', FALSE,
-			'status_code', '404',
-			'message', 'Psicopedagogo não encontrado',
-			'data', NULL
-		);
-
-	ELSE
-	
-		UPDATE tb_paciente SET id_psicopedagogo = p_id_psicopedagogo
-			WHERE id = p_id_paciente;
-            
-		
-         -- GRAU
-        SELECT grau.grau
-        INTO grau_suporte
-        FROM tb_paciente paciente
-        JOIN tb_grau_suporte grau ON paciente.id_grau_suporte = grau.id
-        WHERE paciente.id = p_id_paciente
-        LIMIT 1;
-
-        -- SERIE
-        SELECT serie.serie
-        INTO serie_escolar
-        FROM tb_paciente paciente
-        JOIN tb_serie_escolar serie ON paciente.id_serie_escolar = serie.id
-        WHERE paciente.id = p_id_paciente
-        LIMIT 1;
-        
-        -- DEFININDO DADOS DO PACIENTE
-        SELECT 
-			foto,
-            nome,
-            data_nascimento,
-            diagnostico,
-            numero_registro
-		INTO
-			foto_paciente,
-            nome_paciente,
-            v_data_nascimento,
-            v_diagnostico,
-            v_numero_registro
-        FROM tb_paciente WHERE id = p_id_paciente
-        LIMIT 1;
-        
-		-- IDADE
-        SET idade = TIMESTAMPDIFF(YEAR, v_data_nascimento, CURDATE());
-        
-         -- DEFININDO HABILIDADES
-        SELECT JSON_ARRAYAGG(
-			JSON_OBJECT(
-				'id', h.id,
-				'nome', h.nome,
-				'valor_meses', ph.anos_meses
-			)
-		)
-		INTO v_habilidades
-		FROM tb_habilidade h
-		JOIN tb_paciente_habilidade ph 
-			ON h.id = ph.id_habilidade
-		WHERE ph.id_paciente = p_id_paciente;
-        
-        SET v_habilidades = IFNULL(v_habilidades, JSON_ARRAY());
-        
-        -- DEFININDO DADOS DO PSICOPEDAGOGO
-        SELECT
-            psicopedagogo.nome,
-            psicopedagogo.telefone
-		INTO 
-            nome_psicopedagogo,
-            telefone_psicopedagogo
-        FROM tb_psicopedagogo psicopedagogo WHERE psicopedagogo.id = p_id_psicopedagogo
-        LIMIT 1;
-        
-        -- DEFININDO RESPONSÁVEIS
-        SELECT JSON_ARRAYAGG(
-			JSON_OBJECT(
-				'id', r.id,
-				'nome', r.nome,
-				'telefone', r.telefone
-			)
-		)
-		INTO v_responsaveis
-		FROM tb_responsavel r
-		JOIN tb_responsavel_paciente rp 
-			ON r.id = rp.id_responsavel
-		WHERE rp.id_paciente = p_id_paciente;
-        
-		SET v_responsaveis = IFNULL(v_responsaveis, JSON_ARRAY());
-        
-        
-        SET p_mensagem = JSON_OBJECT(
-			'status', TRUE,
-            'status_code', '200',
-            'message', 'Relação inserida com sucesso',
-			'data', JSON_OBJECT(
-				'id', p_id_paciente,
-				'foto', foto_paciente,
-                'nome', nome_paciente,
-				'data_nascimento', v_data_nascimento,
-				'idade', idade,
-                'diagnostico', v_diagnostico,
-                'serie_escolar', serie_escolar,
-                'grau_suporte', grau_suporte,
-                'numero_registro', v_numero_registro,
-                 'grafico', v_habilidades,
-
-                'psicopedagogo', JSON_ARRAY(
-                    JSON_OBJECT(
-                        'id', p_id_psicopedagogo,
-                        'nome', nome_psicopedagogo,
-                        'telefone', telefone_psicopedagogo
-                    )
-                ),
-
-                'responsavel', v_responsaveis
-                
-            )
+            'status', FALSE,
+            'status_code', '404',
+            'message', 'Paciente não encontrado',
+            'data', NULL
         );
+
+    -- valida psicopedagogo
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM tb_psicopedagogo WHERE id = p_id_psicopedagogo
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', '404',
+            'message', 'Psicopedagogo não encontrado',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- atualiza relação
+        UPDATE tb_paciente
+        SET id_psicopedagogo = p_id_psicopedagogo
+        WHERE id = p_id_paciente;
+
+        CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
+
+        -- sobrescreve mensagem
+        SET p_mensagem = JSON_SET(
+            p_mensagem,
+            '$.message',
+            'Relação inserida com sucesso'
+        );
+
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+
+
+-----------------------------------------
+-- ADICIONAR RELACAO RESPONSAVEL PACIENTE
+-----------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE prc_inserir_relacao_responsavel_paciente(
+    IN p_id_paciente INT,
+    IN p_id_responsavel INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1 FROM tb_paciente WHERE id = p_id_paciente
+    ) THEN
+        
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', '404',
+            'message', 'Paciente não encontrado',
+            'data', NULL
+        );
+
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM tb_responsavel WHERE id = p_id_responsavel
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', '404',
+            'message', 'Responsavel não encontrado',
+            'data', NULL
+        );
+        
+    ELSEIF EXISTS (
+        SELECT 1 
+        FROM tb_responsavel_paciente 
+        WHERE id_paciente = p_id_paciente 
+          AND id_responsavel = p_id_responsavel
+    ) THEN
     
-	END IF;
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', '409',
+            'message', 'Essa relação já existe',
+            'data', NULL
+        );
+
+    ELSE
     
+        INSERT INTO tb_responsavel_paciente(id_paciente, id_responsavel) 
+        VALUES (p_id_paciente, p_id_responsavel);
+
+        
+        CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
+
+        
+        SET p_mensagem = JSON_SET(
+            p_mensagem,
+            '$.message',
+            'Relação inserida com sucesso'
+        );
+
+    END IF;
+
 END $$
 
 DELIMITER ;
