@@ -427,3 +427,56 @@ BEGIN
 END $$
 
 DELIMITER ;
+
+
+-----------------------------------------
+-- ATUALIZAR PACIENTE
+-----------------------------------------
+DELIMITER $$
+
+CREATE PROCEDURE prc_atualizar_paciente(
+	IN p_id_paciente INT,
+	IN p_nome VARCHAR(150),
+    IN p_foto VARCHAR(255),
+    IN p_data_nascimento DATE,
+    IN p_diagnostico VARCHAR(50),
+    IN p_id_serie_escolar INT,
+    IN p_id_grau_suporte INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+	-- valida se o paciente existe
+    IF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+		
+        -- atualiza o paciente
+        UPDATE tb_paciente SET
+			nome = p_nome,
+            foto = p_foto,
+            data_nascimento = p_data_nascimento,
+            diagnostico = p_diagnostico,
+            id_serie_escolar = p_id_serie_escolar,
+            id_grau_suporte = p_id_grau_suporte
+	WHERE id = p_id_paciente;
+    
+    CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
+    
+    -- sobrescreve mensagem
+        SET p_mensagem = JSON_SET(
+            p_mensagem,
+            '$.message',
+            'Item atualizado com sucesso'
+        );
+        
+	ELSE
+    
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado',
+            'data', NULL
+		);
+        
+	END IF;
+END $$
+
+DELIMITER ;
