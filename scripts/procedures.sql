@@ -523,3 +523,71 @@ BEGIN
 END $$
 
 DELIMITER ; 
+
+
+------------------------------------------
+-- DELETAR PACIENTE E SUAS RELAÇÕES
+------------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE proc_delete_familiar(
+	IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+	
+    -- valida se o paciente existe
+    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+	
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado',
+            'data', NULL
+		);
+	
+    ELSE
+		
+        -- remove tentativas
+		DELETE t
+		FROM tb_tentativa t
+		JOIN tb_atividade a ON a.id = t.id_atividade
+		WHERE a.id_paciente = p_id_paciente;
+
+		-- remove atividades
+		DELETE FROM tb_atividade
+		WHERE id_paciente = p_id_paciente;
+        
+        -- remove formulários do paciente
+		DELETE FROM tb_formulario
+		WHERE id_paciente = p_id_paciente;
+
+		-- remove responsáveis
+		DELETE FROM tb_responsavel_paciente
+		WHERE id_paciente = p_id_paciente;
+
+		-- remove habilidades
+		DELETE FROM tb_paciente_habilidade
+		WHERE id_paciente = p_id_paciente;
+
+	-- remove vínculo psicopedagogo
+		UPDATE tb_paciente
+		SET id_psicopedagogo = NULL
+		WHERE id = p_id_paciente;
+
+		-- remove paciente
+		DELETE FROM tb_paciente
+		WHERE id = p_id_paciente;
+        
+        SET p_mensagem = JSON_OBJECT(
+			'status', TRUE,
+            'status_code', 200,
+            'message', 'Delete realizado com sucesso!!'
+        );
+        
+	END IF;
+    
+END $$
+
+DELIMITER ;
