@@ -246,3 +246,30 @@ CALL proc_atualizar_atividade_personalizada(
     12, -- Valor em meses
     6 -- Id da Habilidade
 );
+
+-- PROCEDURE QUE DELETA A ATIVIDADE PERSONALIZADA E SEU REGISTRO NA TABELA ATIVIDADE
+DELIMITER $$
+CREATE PROCEDURE proc_delete_tipo_atividade_personalizada(
+	IN personalizada_id INT
+)
+	BEGIN
+		DECLARE personalizada_existe INT;
+        
+        SELECT COUNT(*) INTO personalizada_existe
+        FROM tb_atividade_personalizada WHERE id = personalizada_id;
+        
+        IF personalizada_existe > 0 THEN
+			DELETE FROM tb_atividade WHERE id_atividade_personalizada = personalizada_id;
+            
+            DELETE FROM tb_atividade_personalizada WHERE id = personalizada_id;
+            
+            SELECT "Atividade deletada com sucesso!";
+        ELSE
+			SELECT "Atividade não encontrada!";
+        END IF;
+    END$$
+DELIMITER ;
+
+CALL proc_delete_tipo_atividade_personalizada(
+	1 -- Id da Atividade que deseja deletar
+);
