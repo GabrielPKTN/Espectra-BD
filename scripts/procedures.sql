@@ -210,3 +210,39 @@ CALL proc_inserir_atividade_personalizada(
     1, -- Id da Atividade Personalizada
     1 -- Id do Psicopedagogo
 );
+
+-- PROCEDURE PARA ATUALIZAR ATIVIDADE PERSONALIZADA
+DELIMITER $$
+CREATE PROCEDURE proc_atualizar_atividade_personalizada(
+	IN personalizada_id INT,
+    IN personalizada_questao VARCHAR(300),
+    IN personalizada_valor_meses INT,
+    IN personalizada_habilidade_id INT
+)
+	BEGIN
+		DECLARE personalizada_existe INT;
+        
+        SELECT COUNT(*) INTO personalizada_existe
+        FROM tb_atividade_personalizada WHERE id = personalizada_id;
+        
+        IF personalizada_existe > 0 THEN
+			UPDATE tb_atividade_personalizada
+			SET
+				questao = personalizada_questao,
+                valor_meses = personalizada_valor_meses,
+                id_habilidade = personalizada_habilidade_id
+				WHERE id = personalizada_id;
+                
+			SELECT "Atividade atualizada com sucesso!" as mensagem;
+		ELSE
+			SELECT "Atividade não encontrada!" as erro;
+        END IF;
+    END$$
+DELIMITER ;
+
+CALL proc_atualizar_atividade_personalizada(
+	1, -- Id da Atividade Personalizada
+    'Nova questão', -- Nome da Atividade (Questão)
+    12, -- Valor em meses
+    6 -- Id da Habilidade
+);
