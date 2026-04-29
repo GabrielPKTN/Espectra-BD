@@ -273,3 +273,31 @@ DELIMITER ;
 CALL proc_delete_tipo_atividade_personalizada(
 	1 -- Id da Atividade que deseja deletar
 );
+
+-- PROCEDURE QUE DELETA ATIVIDADE PORTAGE NA TABELA ATIVIDADE
+DELIMITER $$
+CREATE PROCEDURE proc_delete_atividade_tipo_portage(
+	IN portage_id INT
+)
+	BEGIN
+		DECLARE portage_existe INT;
+        
+        SELECT COUNT(*) INTO portage_existe
+		FROM tb_atividade
+		WHERE id_atividade_portage = portage_id;
+        
+        IF portage_existe > 0 THEN
+			DELETE t FROM tb_tentativa t JOIN tb_atividade a ON t.id_atividade = a.id WHERE a.id_atividade_portage = portage_id;
+                    
+			DELETE FROM tb_atividade WHERE id_atividade_portage = portage_id;
+            
+            SELECT "Atividade deletada com sucesso!";
+		ELSE
+			SELECT "Atividade não encontrada!";
+		END IF;
+    END$$
+DELIMITER ;
+
+CALL proc_delete_atividade_tipo_portage(
+	2 -- Id da Atividade Portage
+);
