@@ -511,13 +511,11 @@ BEGIN
         SET id_psicopedagogo = NULL
         WHERE id = p_id_paciente;
         
-		CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
     
-		-- sobrescreve mensagem
-        SET p_mensagem = JSON_SET(
-            p_mensagem,
-            '$.message',
-            'Paciente desvinculado com sucesso!!'
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Relação desvinculada com sucesso'
         );
     
     END IF;
