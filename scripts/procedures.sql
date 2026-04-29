@@ -301,3 +301,47 @@ DELIMITER ;
 CALL proc_delete_atividade_tipo_portage(
 	2 -- Id da Atividade Portage
 );
+
+-- PROCEDURE PARA INSERIR TENTATIVA
+DELIMITER $$
+CREATE PROCEDURE proc_inserir_tentativa(
+	IN tipo_aplicacao_id INT,
+    IN atividade_id INT,
+    IN tentativa_resultado BOOLEAN, 
+    IN tentativa_observacao VARCHAR(1500),
+    IN tentativa_data_tentativa DATE
+)
+	BEGIN
+		DECLARE tipo_aplicacao_existe INT;
+        DECLARE atividade_existe INT;
+        
+        SELECT COUNT(*) INTO tipo_aplicacao_existe
+        FROM tb_tipo_aplicacao WHERE id = tipo_aplicacao_id;
+        
+        SELECT COUNT(*) INTO atividade_existe
+        FROM tb_atividade WHERE id = atividade_id;
+        
+        IF tipo_aplicacao_existe > 0 AND atividade_existe > 0 THEN
+			INSERT INTO tb_tentativa (resultado, observacao, data_tentativa, id_tipo_aplicacao, id_atividade)
+            VALUES (
+				tentativa_resultado,
+                tentativa_observacao,
+                tentativa_data_tentativa,
+                tipo_aplicacao_id,
+                atividade_id
+            );
+            
+            SELECT "Tentativa cadastrada com sucesso!";
+		ELSE
+			SELECT "Tipo da aplicação ou Atividade não encontrada!";
+		END IF;
+    END$$
+DELIMITER ;
+
+CALL proc_inserir_tentativa(
+	1, -- Id do Tipo de Aplicação
+    9, -- Id da Atividade
+    TRUE, -- Êxito ou falha (True ou False)
+    'Tentativa realizada com auxílio total, possibilidade de melhora', -- Observação
+    '2026-04-20' -- Data da tentativa
+);
