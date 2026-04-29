@@ -168,3 +168,45 @@ CALL proc_inserir_atividade_tipo_portage(
         1, -- Id do Paciente
         1 -- Id da Atividade Portage
 );
+
+-- PROCEDURE PARA INSERIR ATIVIDADE PERSONALIZADA
+DELIMITER $$
+CREATE PROCEDURE proc_inserir_atividade_personalizada(
+	IN personalizada_id_status_atividade INT,
+    IN personalizada_id_paciente INT,
+    IN personalizada_id INT,
+    IN personalizada_psicopedagogo_id INT
+)
+BEGIN
+	DECLARE paciente_existe INT;
+    DECLARE personalizada_existe INT;
+    
+    SELECT COUNT(*) INTO personalizada_existe
+    FROM tb_atividade_personalizada WHERE id = personalizada_id
+    AND id_psicopedagogo = personalizada_psicopedagogo_id;
+    
+    SELECT COUNT(*) INTO paciente_existe
+    FROM tb_paciente WHERE id = personalizada_id_paciente;
+    
+    IF paciente_existe > 0 AND personalizada_existe > 0 THEN
+		INSERT INTO tb_atividade(id_status_atividade, id_paciente, id_atividade_personalizada)
+        VALUES (
+			personalizada_id_status_atividade,
+            personalizada_id_paciente,
+            personalizada_id
+        );
+        SELECT "Atividade criada com sucesso!" as mensagem;
+	ELSEIF paciente_existe = 0 THEN
+		SELECT "Paciente não encontrado!" as erro;
+	ELSE 
+		SELECT "Atividade não pertence ao psicopedagogo ou não existe!" as erro;
+	END IF;
+END $$
+DELIMITER ;
+
+CALL proc_inserir_atividade_personalizada(
+	1, -- Id do Status da Atividade 
+    1, -- id do Paciente
+    1, -- Id da Atividade Personalizada
+    1 -- Id do Psicopedagogo
+);
