@@ -137,9 +137,34 @@ CALL proc_atualizar_respostas_formulario(
 
 -- PROCEDURE PARA INSERIR ATIVIDADE PORTAGE
 DELIMITER $$
-CREATE PROCEDURE proc_inserir_atividade_tipo_portage()
+CREATE PROCEDURE proc_inserir_atividade_tipo_portage(
+	IN portage_id_status_atividade INT,
+    IN portage_id_paciente INT,
+    IN portage_id INT
+)
 BEGIN
-	INSERT INTO tb_atividade (status_atividade, id_paciente, id_atividade_portage)
-    VALUES ();
+	DECLARE paciente_existe INT;
+    
+    SELECT COUNT(*) INTO paciente_existe
+    FROM tb_paciente WHERE id = portage_id_paciente;
+    
+    IF paciente_existe > 0 THEN
+
+		INSERT INTO tb_atividade (id_status_atividade, id_paciente, id_atividade_portage)
+		VALUES (
+				portage_id_status_atividade,
+				portage_id_paciente,
+				portage_id
+		);
+		SELECT "Atividade criada com sucesso!" as mensagem;
+	ELSE
+		SELECT "Paciente não encontrado!" as erro;
+	END IF;
 END$$
 DELIMITER ;
+
+CALL proc_inserir_atividade_tipo_portage(
+		1, -- Id do Status da Atividade
+        1, -- Id do Paciente
+        1 -- Id da Atividade Portage
+);
