@@ -480,3 +480,48 @@ BEGIN
 END $$
 
 DELIMITER ;
+
+
+
+------------------------------------------
+-- DELETAR RELACAO PSICOPEDAGOGO PACIENTE
+------------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE proc_delete_paciente_psicopedagogo(
+	IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+	-- valida se o paciente existe
+    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+	
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado',
+            'data', NULL
+		);
+	
+    ELSE
+		
+         -- remove relação
+        UPDATE tb_paciente 
+        SET id_psicopedagogo = NULL
+        WHERE id = p_id_paciente;
+        
+		CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
+    
+		-- sobrescreve mensagem
+        SET p_mensagem = JSON_SET(
+            p_mensagem,
+            '$.message',
+            'Paciente desvinculado com sucesso!!'
+        );
+    
+    END IF;
+    
+END $$
+
+DELIMITER ; 
