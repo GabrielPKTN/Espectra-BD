@@ -243,7 +243,7 @@ END $$
 DELIMITER ;
 
 
--- ADICIONAR RELACAO PSICOPEDAGOGO PACIENTE
+--- ADICIONAR RELACAO PSICOPEDAGOGO PACIENTE
 
 
 DELIMITER $$
@@ -257,10 +257,10 @@ BEGIN
 	-- DADOS DE RETORNO PACIENTE
 	DECLARE nome_paciente VARCHAR(150);
     DECLARE foto_paciente VARCHAR(255);
-    DECLARE data_nascimento DATE;
+    DECLARE v_data_nascimento DATE;
     DECLARE idade INT;
-    DECLARE diagnostico VARCHAR(50);
-    DECLARE numero_registro VARCHAR(50);
+    DECLARE v_diagnostico VARCHAR(50);
+    DECLARE v_numero_registro VARCHAR(50);
     DECLARE grau_suporte INT;
     DECLARE serie_escolar VARCHAR(50);
     
@@ -282,7 +282,25 @@ BEGIN
 	DECLARE v_responsaveis JSON;
 
     
-     IF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+     IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+				'status', FALSE,
+                'status_code', '404',
+				'message', 'Paciente não encontrado',
+				'data', NULL
+			);
+     
+     ELSEIF NOT EXISTS (SELECT 1 FROM tb_psicopedagogo WHERE id = p_id_psicopedagogo) THEN
+
+		SET p_mensagem = JSON_OBJECT(
+			'status', FALSE,
+			'status_code', '404',
+			'message', 'Psicopedagogo não encontrado',
+			'data', NULL
+		);
+
+	ELSE
 	
 		UPDATE tb_paciente SET id_psicopedagogo = p_id_psicopedagogo
 			WHERE id = p_id_paciente;
@@ -314,13 +332,14 @@ BEGIN
 		INTO
 			foto_paciente,
             nome_paciente,
-            data_nascimento,
-            diagnostico,
-            numero_registro
-        FROM tb_paciente WHERE id = p_id_paciente;
+            v_data_nascimento,
+            v_diagnostico,
+            v_numero_registro
+        FROM tb_paciente WHERE id = p_id_paciente
+        LIMIT 1;
         
 		-- IDADE
-        SET idade = TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE());
+        SET idade = TIMESTAMPDIFF(YEAR, v_data_nascimento, CURDATE());
         
          -- DEFININDO HABILIDADES
         SELECT JSON_ARRAYAGG(
@@ -345,7 +364,8 @@ BEGIN
 		INTO 
             nome_psicopedagogo,
             telefone_psicopedagogo
-        FROM tb_psicopedagogo psicopedagogo WHERE psicopedagogo.id = p_id_psicopedagogo;
+        FROM tb_psicopedagogo psicopedagogo WHERE psicopedagogo.id = p_id_psicopedagogo
+        LIMIT 1;
         
         -- DEFININDO RESPONSÁVEIS
         SELECT JSON_ARRAYAGG(
@@ -372,12 +392,12 @@ BEGIN
 				'id', p_id_paciente,
 				'foto', foto_paciente,
                 'nome', nome_paciente,
-				'data_nascimento', data_nascimento,
+				'data_nascimento', v_data_nascimento,
 				'idade', idade,
-                'diagnostico', diagnostico,
+                'diagnostico', v_diagnostico,
                 'serie_escolar', serie_escolar,
                 'grau_suporte', grau_suporte,
-                'numero_registro', numero_registro,
+                'numero_registro', v_numero_registro,
                  'grafico', v_habilidades,
 
                 'psicopedagogo', JSON_ARRAY(
@@ -392,14 +412,7 @@ BEGIN
                 
             )
         );
-    ELSE
     
-		 SET p_mensagem = JSON_OBJECT(
-				'status', FALSE,
-                'status_code', '404',
-				'message', 'Paciente não encontrado',
-				'data', NULL
-			);
 	END IF;
     
 END $$
