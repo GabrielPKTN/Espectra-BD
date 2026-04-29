@@ -2,6 +2,52 @@
 -- PROCEDURES
 -- ----------------------------------
 
+------------------------------------------
+-- CRIAR HABILIDADES PACIENTE
+------------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE proc_cria_habilidades_paciente(
+	IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+
+  -- valida se o paciente existe
+    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+	
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'message', 'Paciente não encontrado'
+		);
+	
+    ELSE
+    
+		INSERT INTO tb_paciente_habilidade (id_paciente, id_habilidade, anos_meses)
+		SELECT p_id_paciente AS id_paciente,
+		h.id,
+        0.0 AS anos_meses
+		FROM tb_habilidade h
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM tb_paciente_habilidade ph
+            WHERE ph.id_paciente = p_id_paciente
+              AND ph.id_habilidade = h.id
+        );
+        
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'message', 'Habilidades inseridas com sucesso!!'
+		);
+        
+    END IF;
+
+
+END $$
+
+DELIMITER ;
+
 
 --------------------------------------------------------------------
 -- BUSCA TODODS OS DADOS REFERENTE AO PACIENTE PARA RETORNAR NO JSON
@@ -280,6 +326,18 @@ BEGIN
         -- vínculo responsável
         INSERT INTO tb_responsavel_paciente(id_responsavel, id_paciente)
         VALUES (p_id_responsavel, novo_id);
+        
+        INSERT INTO tb_paciente_habilidade (id_paciente, id_habilidade, anos_meses)
+		SELECT novo_id AS id_paciente,
+		h.id,
+        0.0 AS anos_meses
+		FROM tb_habilidade h
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM tb_paciente_habilidade ph
+            WHERE ph.id_paciente = novo_id
+              AND ph.id_habilidade = h.id
+        );
 
         CALL prc_buscar_paciente_completo(novo_id, p_mensagem);
 
