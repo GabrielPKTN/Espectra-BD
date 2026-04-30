@@ -345,3 +345,96 @@ CALL proc_inserir_tentativa(
     'Tentativa realizada com auxílio total, possibilidade de melhora', -- Observação
     '2026-04-20' -- Data da tentativa
 );
+
+-- PROCEDURE QUE LISTA OS DADOS DA HOME DE UM PSICOPEDAGOGO
+DELIMITER $$
+
+CREATE PROCEDURE prc_buscar_psicopedagogo_home(
+    IN p_id_psicopedagogo INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+
+    -- DADOS DO PSICOPEDAGOGO
+    DECLARE v_nome VARCHAR(150);
+    DECLARE v_foto VARCHAR(255);
+
+    -- JSON FINAL DE PACIENTES
+    DECLARE v_pacientes JSON;
+
+    -- VALIDAÇÃO
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM tb_psicopedagogo 
+        WHERE id = p_id_psicopedagogo
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 404,
+            'message', 'Psicopedagogo não encontrado',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- DADOS DO PSICOPEDAGOGO
+        SELECT nome, foto
+        INTO v_nome, v_foto
+        FROM tb_psicopedagogo
+        WHERE id = p_id_psicopedagogo
+        LIMIT 1;
+
+        -- PACIENTES + RESPONSÁVEIS
+        SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'id', p.id,
+                'foto', p.foto,
+                'nome', p.nome,
+                'data_nascimento', p.data_nascimento,
+                'idade', TIMESTAMPDIFF(YEAR, p.data_nascimento, CURDATE()),
+                'diagnostico', p.diagnostico,
+                'serie_escolar', s.serie,
+                'grau_suporte', g.grau,
+                'numero_registro', p.numero_registro,
+
+                'responsavel', (
+                    SELECT IFNULL(JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'id', r.id,
+                            'nome', r.nome,
+                            'telefone', r.telefone
+                        )
+                    ), JSON_ARRAY())
+                    FROM tb_responsavel_paciente rp
+                    JOIN tb_responsavel r ON r.id = rp.id_responsavel
+                    WHERE rp.id_paciente = p.id
+                )
+            )
+        )
+        INTO v_pacientes
+        FROM tb_paciente p
+        LEFT JOIN tb_serie_escolar s ON s.id = p.id_serie_escolar
+        LEFT JOIN tb_grau_suporte g ON g.id = p.id_grau_suporte
+        WHERE p.id_psicopedagogo = p_id_psicopedagogo;
+
+        SET v_pacientes = IFNULL(v_pacientes, JSON_ARRAY());
+
+        -- JSON FINAL
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Psicopedagogo encontrado',
+            'data', JSON_OBJECT(
+                'id', p_id_psicopedagogo,
+                'foto', v_foto,
+                'nome', v_nome,
+                'paciente', v_pacientes
+            )
+        );
+
+    END IF;
+
+END$$
+
+DELIMITER ;
