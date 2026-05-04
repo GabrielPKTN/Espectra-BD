@@ -3,43 +3,63 @@
 -- ----------------------------------
 
 -- PROCEDURE QUE ATUALIZA O PERFIL DO PSICOPEDAGOGO
-delimiter $$
-CREATE PROCEDURE proc_atualizar_psicopedagogo(
-	IN psic_id INT,
-    IN psic_foto VARCHAR(255),
-    IN psic_nome VARCHAR(150),
-    IN psic_data_nascimento DATE,
-    IN psic_telefone VARCHAR(20)
+DELIMITER $$
+
+CREATE PROCEDURE prc_atualizar_psicopedagogo(
+    IN p_id INT,
+    IN p_foto VARCHAR(255),
+    IN p_nome VARCHAR(150),
+    IN p_data_nascimento DATE,
+    IN p_telefone VARCHAR(20),
+    OUT p_mensagem JSON
 )
 BEGIN
-	DECLARE id_existe INT;
-    
-    SELECT COUNT(*) INTO id_existe 
-    FROM tb_psicopedagogo WHERE id = psic_id;
-    
-    if id_existe > 0 THEN
-		UPDATE tb_psicopedagogo 
-        SET 
-			foto = psic_foto,
-			nome = psic_nome,
-			data_nascimento = psic_data_nascimento,
-			telefone = psic_telefone
-		WHERE id = psic_id;
-        
-        SELECT "Atualizado com Sucesso!" as mensagem;
-	ELSE
-		SELECT CONCAT('O ID', psic_id, 'NÃO EXISTE!') as erro404;
-	END IF;
-end $$
-delimiter ;
 
-CALL proc_atualizar_psicopedagogo(
-	1, -- Id do Psicopedagogo
-    'psico1.jpg', -- Foto do Psicopedagogo
-    'Nicolas', -- Nome do Psicopedagogo
-    '2008-06-16', -- Data de nascimento do Psicopedagogo
-    '(11) 96666-6666' -- Telefone do Psicopedagogo
-);
+    DECLARE v_existe INT;
+
+    -- VALIDAÇÃO
+    SELECT COUNT(*) INTO v_existe
+    FROM tb_psicopedagogo
+    WHERE id = p_id;
+
+    IF v_existe = 0 THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 404,
+            'message', 'Psicopedagogo não encontrado',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- UPDATE
+        UPDATE tb_psicopedagogo
+        SET
+            foto = p_foto,
+            nome = p_nome,
+            data_nascimento = p_data_nascimento,
+            telefone = p_telefone
+        WHERE id = p_id;
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Perfil atualizado com sucesso',
+            'data', JSON_OBJECT(
+                'id', p_id,
+                'foto', p_foto,
+                'nome', p_nome,
+                'data_nascimento', p_data_nascimento,
+                'telefone', p_telefone
+            )
+        );
+
+    END IF;
+
+END$$
+
+DELIMITER ;
 
 -- PROCEDURE QUE ATUALIZA A SENHA DO PSICOPEDAGOGO
 DELIMITER $$
