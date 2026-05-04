@@ -438,3 +438,68 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+-- PROCEDURE QUE RETORNA OS DADOS DE UM PSICOPEDAGOGO VALIDANDO POR EMAIL E SENHA
+DELIMITER $$
+
+CREATE PROCEDURE prc_login_psicopedagogo(
+    IN p_email VARCHAR(255),
+    IN p_senha VARCHAR(255),
+    OUT p_mensagem JSON
+)
+BEGIN
+
+    DECLARE v_id INT;
+
+    -- VALIDAÇÃO
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM tb_psicopedagogo 
+        WHERE email = p_email
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 404,
+            'message', 'Email não encontrado',
+            'data', NULL
+        );
+
+    ELSEIF NOT EXISTS (
+        SELECT 1 
+        FROM tb_psicopedagogo 
+        WHERE email = p_email AND senha = p_senha
+    ) THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 401,
+            'message', 'Senha incorreta',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- DADOS DO USUÁRIO
+        SELECT 
+            id
+        INTO
+            v_id
+        FROM tb_psicopedagogo
+        WHERE email = p_email AND senha = p_senha
+        LIMIT 1;
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Login realizado com sucesso',
+            'data', JSON_OBJECT(
+                'id', v_id
+            )
+        );
+
+    END IF;
+
+END$$
+
+DELIMITER ;
