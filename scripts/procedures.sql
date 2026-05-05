@@ -63,64 +63,99 @@ DELIMITER ;
 
 -- PROCEDURE QUE ATUALIZA A SENHA DO PSICOPEDAGOGO
 DELIMITER $$
-CREATE PROCEDURE proc_atualizar_senha_psicopedagogo(
-	IN psic_id INT, 
-    IN psic_email VARCHAR(255),
-    IN psic_nova_senha VARCHAR(150)
+
+CREATE PROCEDURE prc_atualizar_senha_psicopedagogo(
+    IN p_id INT,
+    IN p_email VARCHAR(255),
+    IN p_nova_senha VARCHAR(150),
+    OUT p_mensagem JSON
 )
 BEGIN
-	DECLARE id_existe INT;
 
-	SELECT COUNT(*) INTO id_existe
-	FROM tb_psicopedagogo
-	WHERE id = psic_id AND email = psic_email;
+    DECLARE v_existe INT;
 
-	IF id_existe > 0 THEN
-		UPDATE tb_psicopedagogo
-        SET senha = psic_nova_senha
-        WHERE id = psic_id AND email = psic_email;
-        
-        SELECT 'Senha atualizada com sucesso!' AS mensagem;
-        
-	ELSE
-		SELECT CONCAT('ID ou email inválido (ID: ', psic_id, ')') AS erro;
-        
-	END IF;
-END $$
+    -- VALIDAÇÃO
+    SELECT COUNT(*) INTO v_existe
+    FROM tb_psicopedagogo
+    WHERE id = p_id AND email = p_email;
+
+    IF v_existe = 0 THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 404,
+            'message', 'ID ou email inválido',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- UPDATE
+        UPDATE tb_psicopedagogo
+        SET senha = p_nova_senha
+        WHERE id = p_id AND email = p_email;
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Senha atualizada com sucesso',
+            'data', JSON_OBJECT(
+                'id', p_id,
+                'email', p_email
+            )
+        );
+
+    END IF;
+
+END$$
+
 DELIMITER ;
-
-CALL proc_atualizar_senha_psicopedagogo(
-	1, -- Id do Psicopedagogo
-    'ana.martins@email.com', -- Email do psicopedagogo
-    'senhaN0103' -- Senha nova do psicopedagogo
-)
-
+ 
 -- PROCEDURE PARA DELETAR PSICOPEDAGOGO
 DELIMITER $$
-CREATE PROCEDURE proc_delete_psicopedagogo(
-	IN psic_id INT
+
+CREATE PROCEDURE prc_delete_psicopedagogo(
+    IN p_id INT,
+    OUT p_mensagem JSON
 )
 BEGIN
-	DECLARE id_existe INT;
-    
-    SELECT COUNT(*) INTO id_existe
-    FROM tb_psicopedagogo WHERE id = psic_id;
-    
-    IF id_existe > 0 THEN
-		DELETE FROM tb_psicopedagogo WHERE id = psic_id;
-        SELECT ("Perfil deletado com sucesso") AS mensagem;
-	ELSE
-		SELECT CONCAT("O ID	", psic_id, "	NÃO EXISTE!") as erro;
-	END IF;
-END $$
+
+    DECLARE v_existe INT;
+
+    -- VALIDAÇÃO
+    SELECT COUNT(*) INTO v_existe
+    FROM tb_psicopedagogo
+    WHERE id = p_id;
+
+    IF v_existe = 0 THEN
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 404,
+            'message', 'Psicopedagogo não encontrado',
+            'data', NULL
+        );
+
+    ELSE
+
+        -- DELETE
+        DELETE FROM tb_psicopedagogo
+        WHERE id = p_id;
+
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Psicopedagogo deletado com sucesso',
+            'data', JSON_OBJECT(
+                'id', p_id
+            )
+        );
+
+    END IF;
+
+END$$
+
 DELIMITER ;
-
--- Desativa temporariamente o Safe Updates
-SET SQL_SAFE_UPDATES = 0;
-
-CALL proc_delete_psicopedagogo(
-	1 -- Id Psicopedagogo
-);
 
 -- PROCEDURE PARA ATUALIZAR FORMULÁRIO
 DELIMITER $$
