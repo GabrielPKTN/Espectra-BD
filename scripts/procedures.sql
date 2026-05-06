@@ -580,7 +580,7 @@ BEGIN
     
     -- sobrescreve mensagem
         SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
+            'status', TRUE,
 			'status_code', 200,
             'message', 'Item atualizado com sucesso'
         );
