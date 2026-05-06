@@ -387,7 +387,6 @@ DELIMITER ;
 ---------------------------------------------
 --- ADICIONAR RELACAO PSICOPEDAGOGO PACIENTE
 ---------------------------------------------
-
 DELIMITER $$
 
 CREATE PROCEDURE prc_inserir_relacao_psicopedagogo_paciente(
@@ -404,7 +403,7 @@ BEGIN
 
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
-            'status_code', '404',
+            'status_code', 404,
             'message', 'Paciente não encontrado',
             'data', NULL
         );
@@ -416,8 +415,22 @@ BEGIN
 
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
-            'status_code', '404',
+            'status_code', 404,
             'message', 'Psicopedagogo não encontrado',
+            'data', NULL
+        );
+        
+	ELSEIF EXISTS (
+        SELECT 1 
+        FROM tb_responsavel_paciente 
+        WHERE id_paciente = p_id_paciente 
+          AND id_responsavel = p_id_responsavel
+    ) THEN
+    
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 409,
+            'message', 'Essa relação já existe',
             'data', NULL
         );
 
@@ -464,7 +477,7 @@ BEGIN
         
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
-            'status_code', '404',
+            'status_code', 404,
             'message', 'Paciente não encontrado',
             'data', NULL
         );
@@ -475,7 +488,7 @@ BEGIN
 
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
-            'status_code', '404',
+            'status_code', 404,
             'message', 'Responsavel não encontrado',
             'data', NULL
         );
@@ -489,7 +502,7 @@ BEGIN
     
         SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
-            'status_code', '409',
+            'status_code', 409,
             'message', 'Essa relação já existe',
             'data', NULL
         );
