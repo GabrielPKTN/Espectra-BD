@@ -285,6 +285,35 @@ BEGIN
             'message', 'Este paciente já existe',
             'data', NULL
         );
+        
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_serie_escolar WHERE id = p_id_serie_escolar) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_serie_esolar Incorreto',
+            'data', NULL
+        );
+        
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_grau_suporte WHERE id = p_id_grau_suporte) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_grau_suporte Incorreto',
+            'data', NULL
+        );
+        
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_responsavel WHERE id = p_id_responsavel) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_responsavel Incorreto',
+            'data', NULL
+        );
+    
+    
 
     ELSE
 
