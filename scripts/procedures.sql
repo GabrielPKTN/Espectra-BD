@@ -532,8 +532,26 @@ CREATE PROCEDURE prc_atualizar_paciente(
     OUT p_mensagem JSON
 )
 BEGIN
-	-- valida se o paciente existe
-    IF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+    
+    IF NOT EXISTS(SELECT 1 FROM tb_serie_escolar WHERE id = p_id_serie_escolar) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_serie_esolar Incorreto',
+            'data', NULL
+        );
+        
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_grau_suporte WHERE id = p_id_grau_suporte) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_grau_suporte Incorreto',
+            'data', NULL
+        );
+        
+    ELSEIF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
 		
         -- atualiza o paciente
         UPDATE tb_paciente SET
@@ -548,12 +566,11 @@ BEGIN
     CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
     
     -- sobrescreve mensagem
-        SET p_mensagem = JSON_SET(
+        SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
 			'status_code', 200,
             'message', 'Item atualizado com sucesso'
         );
-        
         
 	ELSE
     
