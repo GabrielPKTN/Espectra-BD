@@ -549,9 +549,9 @@ BEGIN
     
     -- sobrescreve mensagem
         SET p_mensagem = JSON_SET(
-            p_mensagem,
-            '$.message',
-            'Item atualizado com sucesso'
+            'status', FALSE,
+			'status_code', 200,
+            'message', 'Item atualizado com sucesso'
         );
         
 	ELSE
@@ -559,8 +559,7 @@ BEGIN
 		SET p_mensagem = JSON_OBJECT(
             'status', FALSE,
 			'status_code', 404,
-            'message', 'Paciente não encontrado',
-            'data', NULL
+            'message', 'Paciente não encontrado'
 		);
         
 	END IF;
