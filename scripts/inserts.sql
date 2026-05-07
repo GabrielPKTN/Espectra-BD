@@ -45,12 +45,12 @@ INSERT INTO tb_grau_suporte (grau) VALUES
 
 
 
-INSERT INTO tb_paciente (nome, data_nascimento, diagnostico, id_serie_escolar, id_grau_suporte, id_psicopedagogo) VALUES
-('Lucas Andrade', '2015-04-10', 'TDAH', 4, 1, 1),
-('Beatriz Oliveira', '2013-09-22', 'TEA', 6, 2, 2),
-('Pedro Santos', '2011-01-30', 'Dislexia', 8, 1, 3),
-('Juliana Costa', '2016-07-15', 'TDAH', 3, 2, 4),
-('Rafael Mendes', '2010-12-05', 'TEA', 9, 3, 5);
+INSERT INTO tb_paciente (nome, data_nascimento, numero_registro, diagnostico, id_serie_escolar, id_grau_suporte, id_psicopedagogo) VALUES
+('Lucas Andrade', '2015-04-10', '2026040001', 'TDAH', 4, 1, 1),
+('Beatriz Oliveira', '2013-09-22', '2026040002', 'TEA', 6, 2, NULL),
+('Pedro Santos', '2011-01-30', '2026040003', 'Dislexia', 8, 1, 3),
+('Juliana Costa', '2016-07-15', '2026040004', 'TDAH', 3, 2, NULL),
+('Rafael Mendes', '2010-12-05', '2026040005', 'TEA', 9, 3, 5);
 
 
 

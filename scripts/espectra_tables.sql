@@ -44,12 +44,14 @@ CREATE TABLE tb_grau_suporte(
 CREATE TABLE tb_paciente(
 	
     id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    foto VARCHAR(255),
+    numero_registro VARCHAR(10) NOT NULL,
  	nome VARCHAR(150) NOT NULL,
     data_nascimento DATE NOT NULL,
     diagnostico VARCHAR(50),
     id_serie_escolar INT NOT NULL,
     id_grau_suporte INT NOT NULL,
-    id_psicopedagogo INT NOT NULL,
+    id_psicopedagogo INT,
     
     CONSTRAINT fk_serie_escolar_paciente
     FOREIGN KEY (id_serie_escolar) REFERENCES tb_serie_escolar(id),
@@ -61,6 +63,8 @@ CREATE TABLE tb_paciente(
     FOREIGN KEY (id_psicopedagogo) REFERENCES tb_psicopedagogo(id)
     
 );
+
+
 
 CREATE TABLE tb_resposta_formulario(
 		
