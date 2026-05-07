@@ -1,11 +1,3 @@
--- ----------------------------------
--- PROCEDURES
--- ----------------------------------
-
-------------------------------------------
--- CRIAR HABILIDADES PACIENTE
-------------------------------------------
-
 DELIMITER $$
 
 CREATE PROCEDURE proc_cria_habilidades_paciente(
@@ -47,11 +39,6 @@ BEGIN
 END $$
 
 DELIMITER ;
-
-
---------------------------------------------------------------------
--- BUSCA TODODS OS DADOS REFERENTE AO PACIENTE PARA RETORNAR NO JSON
----------------------------------------------------------------------
 
 DELIMITER $$
 
@@ -200,63 +187,6 @@ END $$
 
 DELIMITER ;
 
-
-
------------------------------------------
--- ADICIONAR PSICOPEDAGOGO
------------------------------------------
-
-DELIMITER $$
-CREATE PROCEDURE procedure_adicionar_psicopedagogo(
-	IN p_foto VARCHAR(255),
-    IN p_nome VARCHAR(150),
-    IN p_data_nascimento DATE,
-    IN p_telefone VARCHAR(20),
-    IN p_email VARCHAR(255),
-    IN p_senha VARCHAR(50),
-    OUT p_mensagem JSON
-)
-BEGIN
-	IF EXISTS (SELECT 1 FROM tb_psicopedagogo WHERE email = p_email) THEN
-    
-		SET p_mensagem = JSON_OBJECT(
-			'status', false,
-            'message', 'Este perfil contem dados já existentes',
-            'data', NULL
-        );
-        
-    ELSE
-    
-		INSERT INTO tb_psicopedagogo(foto, nome, data_nascimento, telefone, email, senha) 
-			VALUES (p_foto, p_nome, p_data_nascimento, p_telefone, p_email, p_senha);
-		
-        SET p_mensagem = JSON_OBJECT(
-			'status', true,
-            'status_code', 200,
-            'message', 'Psicopedagogo cadastrado com sucesso',
-            'data', JSON_OBJECT(
-                'nome', p_nome,
-                'data_nascimento', p_data_nascimento,
-                'telefone', p_telefone,
-                'email', p_email,
-                'senha', p_senha
-            )
-        );
-        
-	END IF;
-
-END $$
-DELIMITER ;
-
--- Quando a procedure for usada no Back-End deve ser chamada dessa maneira, o SELECT na mensagem já retorna um JSON com os dados cadastrados.
-call procedure_adicionar_psicopedagogo('foto.png', 'Enzo Carrilho', '2005-09-25', '(11)95978-8007', 'enzo@email.com', '123456', @msg);
-SELECT @msg;
-
-
------------------------------------------
--- ADICIONAR PACIENTE
------------------------------------------
-
 DELIMITER $$
 
 CREATE PROCEDURE prc_adicionar_paciente(
@@ -383,10 +313,135 @@ END $$
 
 DELIMITER ;
 
+DELIMITER $$
 
----------------------------------------------
---- ADICIONAR RELACAO PSICOPEDAGOGO PACIENTE
----------------------------------------------
+CREATE PROCEDURE prc_atualizar_paciente(
+	IN p_id_paciente INT,
+	IN p_nome VARCHAR(150),
+    IN p_foto VARCHAR(255),
+    IN p_data_nascimento DATE,
+    IN p_diagnostico VARCHAR(50),
+    IN p_id_serie_escolar INT,
+    IN p_id_grau_suporte INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+    
+    IF NOT EXISTS(SELECT 1 FROM tb_serie_escolar WHERE id = p_id_serie_escolar) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_serie_esolar Incorreto',
+            'data', NULL
+        );
+        
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_grau_suporte WHERE id = p_id_grau_suporte) THEN
+		
+        SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+            'status_code', 400,
+            'message', 'id_grau_suporte Incorreto',
+            'data', NULL
+        );
+        
+    ELSEIF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+		
+        -- atualiza o paciente
+        UPDATE tb_paciente SET
+			nome = p_nome,
+            foto = p_foto,
+            data_nascimento = p_data_nascimento,
+            diagnostico = p_diagnostico,
+            id_serie_escolar = p_id_serie_escolar,
+            id_grau_suporte = p_id_grau_suporte
+	WHERE id = p_id_paciente;
+    
+    CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
+    
+    -- sobrescreve mensagem
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+			'status_code', 200,
+            'message', 'Item atualizado com sucesso'
+        );
+        
+	ELSE
+    
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado'
+		);
+        
+	END IF;
+END $$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE proc_delete_familiar(
+	IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+	
+    -- valida se o paciente existe
+    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+	
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado',
+            'data', NULL
+		);
+	
+    ELSE
+		
+        -- remove tentativas
+		DELETE t
+		FROM tb_tentativa t
+		JOIN tb_atividade a ON a.id = t.id_atividade
+		WHERE a.id_paciente = p_id_paciente;
+
+		-- remove atividades
+		DELETE FROM tb_atividade
+		WHERE id_paciente = p_id_paciente;
+        
+        -- remove formulários do paciente
+		DELETE FROM tb_formulario
+		WHERE id_paciente = p_id_paciente;
+
+		-- remove responsáveis
+		DELETE FROM tb_responsavel_paciente
+		WHERE id_paciente = p_id_paciente;
+
+		-- remove habilidades
+		DELETE FROM tb_paciente_habilidade
+		WHERE id_paciente = p_id_paciente;
+
+	-- remove vínculo psicopedagogo
+		UPDATE tb_paciente
+		SET id_psicopedagogo = NULL
+		WHERE id = p_id_paciente;
+
+		-- remove paciente
+		DELETE FROM tb_paciente
+		WHERE id = p_id_paciente;
+        
+        SET p_mensagem = JSON_OBJECT(
+			'status', TRUE,
+            'status_code', 200,
+            'message', 'Delete realizado com sucesso!!'
+        );
+        
+	END IF;
+    
+END $$
+
+DELIMITER ;
+
 DELIMITER $$
 
 CREATE PROCEDURE prc_inserir_relacao_psicopedagogo_paciente(
@@ -456,11 +511,42 @@ END $$
 
 DELIMITER ;
 
+DELIMITER $$
 
+CREATE PROCEDURE proc_delete_paciente_psicopedagogo(
+	IN p_id_paciente INT,
+    OUT p_mensagem JSON
+)
+BEGIN
+	-- valida se o paciente existe
+    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+	
+		SET p_mensagem = JSON_OBJECT(
+            'status', FALSE,
+			'status_code', 404,
+            'message', 'Paciente não encontrado',
+            'data', NULL
+		);
+	
+    ELSE
+		
+         -- remove relação
+        UPDATE tb_paciente 
+        SET id_psicopedagogo = NULL
+        WHERE id = p_id_paciente;
+        
+    
+        SET p_mensagem = JSON_OBJECT(
+            'status', TRUE,
+            'status_code', 200,
+            'message', 'Relação desvinculada com sucesso'
+        );
+    
+    END IF;
+    
+END $$
 
------------------------------------------
--- ADICIONAR RELACAO RESPONSAVEL PACIENTE
------------------------------------------
+DELIMITER ;
 
 DELIMITER $$
 
@@ -524,187 +610,6 @@ BEGIN
 
     END IF;
 
-END $$
-
-DELIMITER ;
-
-
------------------------------------------
--- ATUALIZAR PACIENTE
------------------------------------------
-DELIMITER $$
-
-CREATE PROCEDURE prc_atualizar_paciente(
-	IN p_id_paciente INT,
-	IN p_nome VARCHAR(150),
-    IN p_foto VARCHAR(255),
-    IN p_data_nascimento DATE,
-    IN p_diagnostico VARCHAR(50),
-    IN p_id_serie_escolar INT,
-    IN p_id_grau_suporte INT,
-    OUT p_mensagem JSON
-)
-BEGIN
-    
-    IF NOT EXISTS(SELECT 1 FROM tb_serie_escolar WHERE id = p_id_serie_escolar) THEN
-		
-        SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
-            'status_code', 400,
-            'message', 'id_serie_esolar Incorreto',
-            'data', NULL
-        );
-        
-	ELSEIF NOT EXISTS(SELECT 1 FROM tb_grau_suporte WHERE id = p_id_grau_suporte) THEN
-		
-        SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
-            'status_code', 400,
-            'message', 'id_grau_suporte Incorreto',
-            'data', NULL
-        );
-        
-    ELSEIF EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
-		
-        -- atualiza o paciente
-        UPDATE tb_paciente SET
-			nome = p_nome,
-            foto = p_foto,
-            data_nascimento = p_data_nascimento,
-            diagnostico = p_diagnostico,
-            id_serie_escolar = p_id_serie_escolar,
-            id_grau_suporte = p_id_grau_suporte
-	WHERE id = p_id_paciente;
-    
-    CALL prc_buscar_paciente_completo(p_id_paciente, p_mensagem);
-    
-    -- sobrescreve mensagem
-        SET p_mensagem = JSON_OBJECT(
-            'status', TRUE,
-			'status_code', 200,
-            'message', 'Item atualizado com sucesso'
-        );
-        
-	ELSE
-    
-		SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
-			'status_code', 404,
-            'message', 'Paciente não encontrado'
-		);
-        
-	END IF;
-END $$
-
-DELIMITER ;
-
-
-
-------------------------------------------
--- DELETAR RELACAO PSICOPEDAGOGO PACIENTE
-------------------------------------------
-
-DELIMITER $$
-
-CREATE PROCEDURE proc_delete_paciente_psicopedagogo(
-	IN p_id_paciente INT,
-    OUT p_mensagem JSON
-)
-BEGIN
-	-- valida se o paciente existe
-    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
-	
-		SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
-			'status_code', 404,
-            'message', 'Paciente não encontrado',
-            'data', NULL
-		);
-	
-    ELSE
-		
-         -- remove relação
-        UPDATE tb_paciente 
-        SET id_psicopedagogo = NULL
-        WHERE id = p_id_paciente;
-        
-    
-        SET p_mensagem = JSON_OBJECT(
-            'status', TRUE,
-            'status_code', 200,
-            'message', 'Relação desvinculada com sucesso'
-        );
-    
-    END IF;
-    
-END $$
-
-DELIMITER ; 
-
-
-------------------------------------------
--- DELETAR PACIENTE E SUAS RELAÇÕES
-------------------------------------------
-
-DELIMITER $$
-
-CREATE PROCEDURE proc_delete_familiar(
-	IN p_id_paciente INT,
-    OUT p_mensagem JSON
-)
-BEGIN
-	
-    -- valida se o paciente existe
-    IF NOT EXISTS (SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
-	
-		SET p_mensagem = JSON_OBJECT(
-            'status', FALSE,
-			'status_code', 404,
-            'message', 'Paciente não encontrado',
-            'data', NULL
-		);
-	
-    ELSE
-		
-        -- remove tentativas
-		DELETE t
-		FROM tb_tentativa t
-		JOIN tb_atividade a ON a.id = t.id_atividade
-		WHERE a.id_paciente = p_id_paciente;
-
-		-- remove atividades
-		DELETE FROM tb_atividade
-		WHERE id_paciente = p_id_paciente;
-        
-        -- remove formulários do paciente
-		DELETE FROM tb_formulario
-		WHERE id_paciente = p_id_paciente;
-
-		-- remove responsáveis
-		DELETE FROM tb_responsavel_paciente
-		WHERE id_paciente = p_id_paciente;
-
-		-- remove habilidades
-		DELETE FROM tb_paciente_habilidade
-		WHERE id_paciente = p_id_paciente;
-
-	-- remove vínculo psicopedagogo
-		UPDATE tb_paciente
-		SET id_psicopedagogo = NULL
-		WHERE id = p_id_paciente;
-
-		-- remove paciente
-		DELETE FROM tb_paciente
-		WHERE id = p_id_paciente;
-        
-        SET p_mensagem = JSON_OBJECT(
-			'status', TRUE,
-            'status_code', 200,
-            'message', 'Delete realizado com sucesso!!'
-        );
-        
-	END IF;
-    
 END $$
 
 DELIMITER ;
