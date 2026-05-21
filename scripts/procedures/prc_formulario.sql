@@ -1,5 +1,4 @@
 DELIMITER $$
-drop procedure prc_atualizar_respostas_formulario;
 CREATE PROCEDURE prc_atualizar_respostas_formulario(
 	IN p_id_usuario INT,
     IN p_id_paciente INT,

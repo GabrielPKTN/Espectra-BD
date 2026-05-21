@@ -1,3 +1,5 @@
+
+drop trigger trg_update_idade_formulario;
 DELIMITER $$
 
 CREATE TRIGGER trg_update_idade_formulario
@@ -6,7 +8,7 @@ FOR EACH ROW
 BEGIN
 	
     -- SE ATUALIZADO PARA SIM
-	IF (NEW.id_resposta = 1 AND OLD.id_resposta = NULL OR OLD.id_resposta = 2 OR OLD.id_resposta = 3) THEN
+	IF (NEW.id_resposta = 1 AND (OLD.id_resposta IS NULL OR OLD.id_resposta = 2 OR OLD.id_resposta = 3)) THEN
 		
         -- VERIFICA SE TEM UMA ATIVIDADE COM ESSE ID DE ATIVIDADE PORTAGE
 		IF EXISTS (
@@ -16,7 +18,8 @@ BEGIN
 			-- SE TIVER, MARCA COMO CONCLUÍDA
 			UPDATE tb_atividade SET
 				concluida = TRUE
-                WHERE id_atividade_portage = OLD.id_atividade_portage;
+			WHERE id_atividade_portage = OLD.id_atividade_portage
+            AND concluida = FALSE;
 		
         ELSE
 			
@@ -68,7 +71,8 @@ BEGIN
 				-- CASO TENHA, ELE DEFINE ELA COMO NÃO CONCLUIDA PARA DESENVOLVER
 				UPDATE tb_atividade SET
 					concluida = FALSE
-				WHERE id_atividade_portage = OLD.id_atividade_portage;
+				WHERE id_atividade_portage = OLD.id_atividade_portage
+                AND concluida = TRUE;
 				
 			END IF;
         

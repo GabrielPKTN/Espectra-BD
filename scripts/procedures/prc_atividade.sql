@@ -481,6 +481,19 @@ CREATE PROCEDURE prc_atualiza_status_atividade(
 			concluida = TRUE
 		WHERE id = p_id_atividade;
         
+        IF EXISTS (
+        
+			SELECT 1 FROM tb_atividade WHERE id = p_id_atividade AND id_atividade_portage IS NOT NULL
+        
+        ) THEN
+        
+			UPDATE tb_formulario SET
+				id_resposta = 1
+            WHERE id_paciente = (SELECT id_paciente FROM tb_atividade WHERE id = p_id_atividade) -- Retorna o id do paciente que essa atividade pertence
+			AND id_atividade_portage = (SELECT id_atividade_portage FROM tb_atividade WHERE id = p_id_atividade);
+        
+        END IF;
+        
         SET p_message = JSON_OBJECT(
 			'status', TRUE,
             'status_code', 200,

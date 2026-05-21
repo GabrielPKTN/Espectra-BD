@@ -38,17 +38,8 @@ BEGIN
 
     IF (OLD.concluida = 0 AND NEW.concluida = 1) THEN
 
-        -- Verifica se é uma atividade do tipo portage
-        IF (OLD.id_atividade_portage IS NOT NULL) THEN
-
-            -- Caso seja ele atualiza o comportamento no formulario do paciente para sim
-            UPDATE tb_formulario SET
-                id_resposta = 1
-            WHERE id_atividade_portage = OLD.id_atividade_portage
-            AND id_paciente = OLD.id_paciente;
-
         -- Verifica se é uma atividade do tipo personalizada
-        ELSEIF (OLD.id_atividade_personalizada IS NOT NULL) THEN
+        IF (OLD.id_atividade_personalizada IS NOT NULL) THEN
 
             -- Caso seja atualiza o valor somando o valor da atividade personalizada
             UPDATE tb_paciente_habilidade SET

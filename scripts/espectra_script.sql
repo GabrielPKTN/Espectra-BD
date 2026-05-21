@@ -1003,7 +1003,6 @@ INSERT INTO tb_formulario (id_paciente, id_atividade_portage, id_resposta)
 SELECT 5, id, NULL 
 FROM tb_atividade_portage 
 ORDER BY id ASC;
-    
 
 -- Dados do paciente (serie e grau de suporte ) pelo id
 CREATE VIEW vw_data_paciente AS
@@ -1214,7 +1213,7 @@ SELECT
     tb_habilidade.id = tb_atividade_portage.id_habilidade
     ORDER BY data_tentativa DESC;
 
-DELIMITER $$
+    DELIMITER $$
 
 CREATE PROCEDURE prc_usuario(
 	IN p_id INT,
@@ -2260,7 +2259,6 @@ END$$
 DELIMITER ;
 
 DELIMITER $$
-
 CREATE PROCEDURE prc_atualizar_respostas_formulario(
 	IN p_id_usuario INT,
     IN p_id_paciente INT,
@@ -2420,7 +2418,6 @@ CREATE PROCEDURE prc_formulario_pelo_id_paciente(
 END$$
 
 DELIMITER ;
-
 
 DELIMITER $$
 
@@ -2899,6 +2896,19 @@ CREATE PROCEDURE prc_atualiza_status_atividade(
 			concluida = TRUE
 		WHERE id = p_id_atividade;
         
+        IF EXISTS (
+        
+			SELECT 1 FROM tb_atividade WHERE id = p_id_atividade AND id_atividade_portage IS NOT NULL
+        
+        ) THEN
+        
+			UPDATE tb_formulario SET
+				id_resposta = 1
+            WHERE id_paciente = (SELECT id_paciente FROM tb_atividade WHERE id = p_id_atividade) -- Retorna o id do paciente que essa atividade pertence
+			AND id_atividade_portage = (SELECT id_atividade_portage FROM tb_atividade WHERE id = p_id_atividade);
+        
+        END IF;
+        
         SET p_message = JSON_OBJECT(
 			'status', TRUE,
             'status_code', 200,
@@ -3098,7 +3108,7 @@ FOR EACH ROW
 BEGIN
 	
     -- SE ATUALIZADO PARA SIM
-	IF (NEW.id_resposta = 1 AND OLD.id_resposta = NULL OR OLD.id_resposta = 2 OR OLD.id_resposta = 3) THEN
+	IF (NEW.id_resposta = 1 AND (OLD.id_resposta IS NULL OR OLD.id_resposta = 2 OR OLD.id_resposta = 3)) THEN
 		
         -- VERIFICA SE TEM UMA ATIVIDADE COM ESSE ID DE ATIVIDADE PORTAGE
 		IF EXISTS (
@@ -3108,7 +3118,8 @@ BEGIN
 			-- SE TIVER, MARCA COMO CONCLUÍDA
 			UPDATE tb_atividade SET
 				concluida = TRUE
-                WHERE id_atividade_portage = OLD.id_atividade_portage;
+			WHERE id_atividade_portage = OLD.id_atividade_portage
+            AND concluida = FALSE;
 		
         ELSE
 			
@@ -3160,7 +3171,8 @@ BEGIN
 				-- CASO TENHA, ELE DEFINE ELA COMO NÃO CONCLUIDA PARA DESENVOLVER
 				UPDATE tb_atividade SET
 					concluida = FALSE
-				WHERE id_atividade_portage = OLD.id_atividade_portage;
+				WHERE id_atividade_portage = OLD.id_atividade_portage
+                AND concluida = TRUE;
 				
 			END IF;
         
@@ -3212,17 +3224,8 @@ BEGIN
 
     IF (OLD.concluida = 0 AND NEW.concluida = 1) THEN
 
-        -- Verifica se é uma atividade do tipo portage
-        IF (OLD.id_atividade_portage IS NOT NULL) THEN
-
-            -- Caso seja ele atualiza o comportamento no formulario do paciente para sim
-            UPDATE tb_formulario SET
-                id_resposta = 1
-            WHERE id_atividade_portage = OLD.id_atividade_portage
-            AND id_paciente = OLD.id_paciente;
-
         -- Verifica se é uma atividade do tipo personalizada
-        ELSEIF (OLD.id_atividade_personalizada IS NOT NULL) THEN
+        IF (OLD.id_atividade_personalizada IS NOT NULL) THEN
 
             -- Caso seja atualiza o valor somando o valor da atividade personalizada
             UPDATE tb_paciente_habilidade SET
