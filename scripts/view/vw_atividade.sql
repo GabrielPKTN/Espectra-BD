@@ -67,3 +67,19 @@ SELECT
 	JOIN tb_habilidade ON
     tb_habilidade.id = tb_atividade_personalizada.id_habilidade
     ORDER BY numero_questao;
+
+CREATE VIEW vw_atividade_portage_nao_desenvolvida AS
+SELECT 
+	tb_formulario.id_paciente AS id_paciente,
+	tb_atividade_portage.id AS id_atividade_portage,
+    tb_atividade_portage.numero_questao AS numero_questao,
+    tb_atividade_portage.comportamento AS comportamento,
+    tb_habilidade.id AS id_habilidade,
+    tb_habilidade.nome AS nome_habilidade,
+    tb_atividade_portage.id_faixa_idade AS id_faixa_idade
+    FROM tb_atividade_portage
+    JOIN tb_habilidade ON
+    tb_atividade_portage.id_habilidade = tb_habilidade.id
+    JOIN tb_formulario ON
+    tb_formulario.id_atividade_portage = tb_atividade_portage.id
+    WHERE tb_formulario.id_resposta IS NOT TRUE;

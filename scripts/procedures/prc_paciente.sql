@@ -522,12 +522,6 @@ CREATE PROCEDURE prc_retorna_paciente_pelo_cpf(
 
 ) BEGIN
 	
-	DECLARE v_id INT;
-    DECLARE v_nome VARCHAR(150);
-    DECLARE v_foto VARCHAR(255);
-    DECLARE v_data_nascimento DATE;
-    DECLARE v_serie VARCHAR(30);
-    DECLARE v_grau VARCHAR(30);
 	DECLARE data_hoje DATE;
     SET data_hoje = curdate();
 
@@ -543,30 +537,17 @@ CREATE PROCEDURE prc_retorna_paciente_pelo_cpf(
         );
     
     ELSE
-    
-		SELECT id_paciente, nome, foto, data_nascimento, serie, grau 
-        FROM vw_data_paciente WHERE cpf = p_cpf
-        INTO v_id, v_nome, v_foto, v_data_nascimento, v_serie, v_grau;
-        
         
         SET p_message = JSON_OBJECT(
 			'status', TRUE,
             'status_code', 200,
             'message', 'Requisição bem sucedida!!!',
-            'date', DATE_FORMAT(data_hoje, '%d/%m/%Y'),
-            'data', JSON_OBJECT(
-            
-				'id', v_id,
-                'nome', v_nome,
-                'foto', v_foto,
-                'cpf', p_cpf,
-                'data_nascimento', DATE_FORMAT(v_data_nascimento, '%d/%m/%Y'),
-                'idade', TIMESTAMPDIFF(YEAR, v_data_nascimento, CURDATE()),
-                'serie_escolar', v_serie,
-                'grau_suporte', v_grau
-            
-            )
+            'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
         );
+
+        CALL prc_buscar_paciente_completo((
+            SELECT id FROM tb_paciente WHERE cpf = p_cpf
+        ), @resultPaciente);
     
     END IF;
 

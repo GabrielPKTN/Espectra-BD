@@ -1164,6 +1164,22 @@ SELECT
     tb_habilidade.id = tb_atividade_personalizada.id_habilidade
     ORDER BY numero_questao;
 
+CREATE VIEW vw_atividade_portage_nao_desenvolvida AS
+SELECT 
+	tb_formulario.id_paciente AS id_paciente,
+	tb_atividade_portage.id AS id_atividade_portage,
+    tb_atividade_portage.numero_questao AS numero_questao,
+    tb_atividade_portage.comportamento AS comportamento,
+    tb_habilidade.id AS id_habilidade,
+    tb_habilidade.nome AS nome_habilidade,
+    tb_atividade_portage.id_faixa_idade AS id_faixa_idade
+    FROM tb_atividade_portage
+    JOIN tb_habilidade ON
+    tb_atividade_portage.id_habilidade = tb_habilidade.id
+    JOIN tb_formulario ON
+    tb_formulario.id_atividade_portage = tb_atividade_portage.id
+    WHERE tb_formulario.id_resposta IS NOT TRUE;
+
 CREATE VIEW vw_tentativas AS
 SELECT
 	
@@ -2206,12 +2222,6 @@ CREATE PROCEDURE prc_retorna_paciente_pelo_cpf(
 
 ) BEGIN
 	
-	DECLARE v_id INT;
-    DECLARE v_nome VARCHAR(150);
-    DECLARE v_foto VARCHAR(255);
-    DECLARE v_data_nascimento DATE;
-    DECLARE v_serie VARCHAR(30);
-    DECLARE v_grau VARCHAR(30);
 	DECLARE data_hoje DATE;
     SET data_hoje = curdate();
 
@@ -2227,30 +2237,17 @@ CREATE PROCEDURE prc_retorna_paciente_pelo_cpf(
         );
     
     ELSE
-    
-		SELECT id_paciente, nome, foto, data_nascimento, serie, grau 
-        FROM vw_data_paciente WHERE cpf = p_cpf
-        INTO v_id, v_nome, v_foto, v_data_nascimento, v_serie, v_grau;
-        
         
         SET p_message = JSON_OBJECT(
 			'status', TRUE,
             'status_code', 200,
             'message', 'Requisição bem sucedida!!!',
-            'date', DATE_FORMAT(data_hoje, '%d/%m/%Y'),
-            'data', JSON_OBJECT(
-            
-				'id', v_id,
-                'nome', v_nome,
-                'foto', v_foto,
-                'cpf', p_cpf,
-                'data_nascimento', DATE_FORMAT(v_data_nascimento, '%d/%m/%Y'),
-                'idade', TIMESTAMPDIFF(YEAR, v_data_nascimento, CURDATE()),
-                'serie_escolar', v_serie,
-                'grau_suporte', v_grau
-            
-            )
+            'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
         );
+
+        CALL prc_buscar_paciente_completo((
+            SELECT id FROM tb_paciente WHERE cpf = p_cpf
+        ), @resultPaciente);
     
     END IF;
 
@@ -2915,6 +2912,147 @@ CREATE PROCEDURE prc_atualiza_status_atividade(
             'message', 'Item atualizado com sucesso!!!',
             'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
 		);
+    
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE prc_atividade(
+
+	IN p_id_atividade INT,
+    IN p_id_usuario INT,
+    OUT p_message JSON
+
+) BEGIN
+
+	DECLARE return_atividade JSON;
+	DECLARE data_hoje DATE;
+    SET data_hoje = CURDATE();
+
+	IF NOT EXISTS(SELECT 1 FROM tb_atividade WHERE id = p_id_atividade) THEN
+    
+		SET p_message = JSON_OBJECT(
+        
+			'status', FALSE,
+			'status_code', 404,
+			'message', 'Não foram encontrados dados de retorno!!!',
+			'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
+        
+        );
+    
+    ELSEIF NOT EXISTS(SELECT 1 FROM tb_usuario_paciente WHERE id_usuario = p_id_usuario AND id_paciente = (
+		SELECT id_paciente FROM tb_atividade WHERE id = p_id_atividade
+    )) THEN
+    
+		SET p_message = JSON_OBJECT(
+        
+			'status', FALSE,
+			'status_code', 401,
+			'message', 'Não foi possível processar a requisição pois faltam credenciais válidas!!!',
+			'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
+			
+		);
+    
+    ELSE
+		
+		SELECT JSON_OBJECT(
+			'id_atividade', id_atividade,
+            'id_paciente', id_paciente,
+            'concluida', concluida,
+            'numero_questao', numero_questao,
+            'comportamento', comportamento,
+            'habilidade', JSON_ARRAYAGG(
+				JSON_OBJECT(
+					'id_habilidade', id_habilidade,
+					'nome_habilidade', nome_habilidade
+                )
+            )
+            
+        ) FROM vw_todas_atividades 
+        WHERE id_atividade = p_id_atividade
+        GROUP BY id_atividade, id_paciente, concluida, numero_questao, comportamento, id_habilidade, nome_habilidade
+        INTO return_atividade;
+        
+        SET p_message = JSON_OBJECT(
+			'status', TRUE,
+            'status_code', 200,
+            'message', 'Item atualizado com sucesso!!!',
+            'date', DATE_FORMAT(data_hoje, '%d/%m/%Y'),
+            'data', return_atividade
+		);
+    
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE prc_atividade_portage_nao_desenvolvida(
+	
+    IN p_id_paciente INT,
+    IN p_id_habilidade INT,
+	OUT p_message JSON
+    
+) BEGIN
+
+	DECLARE return_atividades JSON;
+	DECLARE data_hoje DATE;
+    SET data_hoje = CURDATE();
+
+	IF NOT EXISTS(SELECT 1 FROM tb_paciente WHERE id = p_id_paciente) THEN
+		
+		SET p_message = JSON_OBJECT(
+			'status', FALSE,
+			'status_code', 404,
+			'message', 'Não foram encontrados dados de retorno!!!',
+			'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
+        );
+	
+	ELSEIF NOT EXISTS(SELECT 1 FROM tb_habilidade WHERE id = p_id_habilidade) THEN
+    
+		SET p_message = JSON_OBJECT(
+			'status', FALSE,
+			'status_code', 404,
+			'message', 'Não foram encontrados dados de retorno!!!',
+			'date', DATE_FORMAT(data_hoje, '%d/%m/%Y')
+        );
+    
+	ELSE
+		
+		SELECT JSON_ARRAYAGG(
+			JSON_OBJECT(
+				
+                'id_atividade_portage', id_atividade_portage,
+                'numero_questao', numero_questao,
+                'comportamento', comportamento,
+                'habilidade', JSON_ARRAY(
+					JSON_OBJECT(
+						'id_habilidade', id_habilidade,
+						'nome_habilidade', nome_habilidade
+                    )
+                ),
+                'id_faixa_idade', id_faixa_idade
+            )
+        ) FROM vw_atividade_portage_nao_desenvolvida
+		WHERE id_habilidade = p_id_habilidade AND id_paciente = p_id_paciente
+        ORDER BY id_atividade_portage, numero_questao, comportamento, id_habilidade, nome_habilidade, id_faixa_idade
+        INTO return_atividades;
+        
+		
+		SET p_message = JSON_OBJECT(
+				'status', TRUE,
+				'status_code', 200,
+				'message', 'Item atualizado com sucesso!!!',
+				'date', DATE_FORMAT(data_hoje, '%d/%m/%Y'),
+				'data', return_atividades
+			);
+		
     
     END IF;
 
